@@ -6,7 +6,7 @@ service cloud.firestore {
       return request.auth != null
         && request.auth.token.email_verified == true
         && request.auth.token.firebase.sign_in_provider == 'google.com'
-        && request.auth.token.email == 'SEU_GMAIL_AQUI';
+        && request.auth.token.email == 'rafanvieira86@gmail.com';
     }
 
     match /caixas/{caixaId} {
