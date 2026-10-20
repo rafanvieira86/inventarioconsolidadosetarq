@@ -104,7 +104,7 @@ body.auth-locked .sidebar,body.auth-locked .main,body.auth-locked #toast{display
       measurementId: "G-NMPEYYBJ12"
     };
     // Antes de publicar, substitua pelo seu Gmail e use o mesmo e-mail nas regras do Firestore.
-    const AUTHORIZED_EMAIL = 'SEU_GMAIL_AQUI';
+    const AUTHORIZED_EMAIL = 'rafanvieira86@gmail.com';
     firebase.initializeApp(firebaseConfig);
     const auth = firebase.auth();
     const db = firebase.firestore();
@@ -125,7 +125,7 @@ body.auth-locked .sidebar,body.auth-locked .main,body.auth-locked #toast{display
       try {
         const provider = new firebase.auth.GoogleAuthProvider();
         provider.setCustomParameters({ prompt: 'select_account' });
-        await auth.signInWithPopup(provider);
+        await auth.signInWithRedirect(provider);
       } catch (error) {
         showError(error.code === 'auth/popup-blocked'
           ? 'O navegador bloqueou a janela de login. Permita pop-ups para este site e tente novamente.'
