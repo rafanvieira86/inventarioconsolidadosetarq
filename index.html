@@ -117,20 +117,53 @@ html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#f5f8f6;fon
       const w = frame.contentWindow;
       if (!w || w.location.origin !== location.origin) return;
       frameStorageSetItem = w.Storage.prototype.setItem;
-      // If a box was opened from the Status tab, return to that same filtered
-      // table after saving its conference status instead of leaving the user
-      // in "Localizar e conferir".
+      // Save the Status view before the app opens a box in another tab.
+      // Do not depend on a particular row selector: cards/buttons can change
+      // their markup without breaking the return-to-Status behavior.
+      const readStatusView = () => ({
+        search: w.document.getElementById('statusSearch')?.value || '',
+        filter: w.document.getElementById('statusFilter')?.value || 'todos',
+        sort: w.document.getElementById('sortFilter')?.value || 'endereco'
+      });
+      const statusTabIsActive = () => {
+        const activeNav = w.document.querySelector('.nav-link.active[data-page]');
+        return !!activeNav && activeNav.dataset.page === 'status';
+      };
+      const rememberStatusView = () => {
+        if (statusTabIsActive()) savedStatusView = readStatusView();
+      };
       w.document.addEventListener('click', event => {
-        const rowButton = event.target && event.target.closest
-          ? event.target.closest('[data-status-open]') : null;
-        if (!rowButton) return;
-        returnToStatusAfterSave = true;
-        savedStatusView = {
-          search: w.document.getElementById('statusSearch')?.value || '',
-          filter: w.document.getElementById('statusFilter')?.value || 'todos',
-          sort: w.document.getElementById('sortFilter')?.value || 'endereco'
-        };
+        const target = event.target;
+        const navLink = target && target.closest
+          ? target.closest('.nav-link[data-page]') : null;
+
+        // Only a real user navigation cancels the saved context. The app may
+        // navigate internally by calling .click(), which must not cancel it.
+        if (navLink && event.isTrusted) {
+          if (navLink.dataset.page === 'status') {
+            returnToStatusAfterSave = false;
+            savedStatusView = readStatusView();
+          } else {
+            returnToStatusAfterSave = false;
+          }
+          return;
+        }
+
+        // Any content interaction from the Status tab can open a box in the
+        // conference screen. Capture the current search/filter/sort first.
+        if (statusTabIsActive()) {
+          savedStatusView = readStatusView();
+          returnToStatusAfterSave = true;
+        }
       }, true);
+      ['input', 'change'].forEach(type => {
+        w.document.addEventListener(type, event => {
+          const target = event.target;
+          if (target && ['statusSearch', 'statusFilter', 'sortFilter'].includes(target.id)) {
+            rememberStatusView();
+          }
+        }, true);
+      });
       w.Storage.prototype.setItem = function(key, value) {
         let before = null;
         if (key === KEY && !applyingRemote) {
