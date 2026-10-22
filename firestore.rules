@@ -5,12 +5,13 @@ service cloud.firestore {
     function authorizedUser() {
       return request.auth != null
         && request.auth.token.email_verified == true
-        && request.auth.token.firebase.sign_in_provider == 'google.com'
+        && request.auth.token.firebase.sign_in_provider == 'password'
         && request.auth.token.email == 'rafanvieira86@gmail.com';
     }
 
     match /caixas/{caixaId} {
-      allow read, create, update, delete: if authorizedUser();
+      allow read, create, update: if authorizedUser();
+      allow delete: if false;
     }
 
     match /{document=**} {
