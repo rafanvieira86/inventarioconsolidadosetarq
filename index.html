@@ -192,8 +192,18 @@ body.auth-locked .sidebar,body.auth-locked .main,body.auth-locked #toast{display
         showError('O login foi reconhecido, mas falta configurar o Gmail autorizado. No arquivo index.html, substitua SEU_GMAIL_AQUI pelo seu endereço Gmail e publique as regras fornecidas em firestore.rules.');
         return;
       }
-      if (!user.email || user.email.toLowerCase() !== AUTHORIZED_EMAIL.toLowerCase() || !user.emailVerified || !user.providerData.some(provider => provider.providerId === 'password')) {
-        showError('Esta conta não está autorizada. Use o e-mail individual cadastrado no Firebase, confirme o endereço e entre com senha.');
+      if (!user.email || user.email.toLowerCase() !== AUTHORIZED_EMAIL.toLowerCase() || !user.providerData.some(provider => provider.providerId === 'password')) {
+        showError('Esta conta não está autorizada. Use o e-mail individual cadastrado no Firebase e entre com senha.');
+        await auth.signOut();
+        return;
+      }
+      if (!user.emailVerified) {
+        try {
+          await user.sendEmailVerification();
+          showError('Seu e-mail ainda não foi verificado. Enviamos um link de verificação; confirme-o e depois entre novamente.');
+        } catch (error) {
+          showError('Seu e-mail ainda não foi verificado. Peça o reenvio do link ou confira as configurações de envio de e-mail do Firebase.');
+        }
         await auth.signOut();
         return;
       }
