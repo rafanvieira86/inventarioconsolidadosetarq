@@ -64,7 +64,17 @@ html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#f5f8f6;fon
       else localStorage.setItem(KEY, JSON.stringify(map));
     } finally { applyingRemote = false; }
     lastKnownMap = {...map};
-    if (reloadFrame && frameLoaded) frame.contentWindow.location.reload();
+    if (reloadFrame && frameLoaded) {
+      // Notify the embedded application without resetting its current view.
+      try {
+        frame.contentWindow.dispatchEvent(new StorageEvent('storage', {
+          key: KEY,
+          newValue: JSON.stringify(map),
+          storageArea: frame.contentWindow.localStorage,
+          url: frame.contentWindow.location.href
+        }));
+      } catch (error) { console.warn('Atualização visual adiada:', error); }
+    }
   }
   async function writeState(id, state) {
     pendingWrites.add(id);
