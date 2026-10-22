@@ -1,55 +1,30 @@
-# Integração Firebase — Inventário de Conferência de Caixas
+INTEGRAÇÃO FIREBASE — INVENTÁRIO DE CONFERÊNCIA DE CAIXAS
 
-## O que estes arquivos fazem
+O aplicativo index.html utiliza Firebase Authentication com e-mail e senha e Cloud Firestore para ler e salvar o inventário e as conferências. O acesso é restrito a rafanvieira86@gmail.com. A senha não fica no código.
 
-- `index.html`: versão do aplicativo com tela de login Google e leitura/gravação no Cloud Firestore.
-- `importar-inventario.html`: ferramenta temporária para transferir as 615 caixas e os status salvos no `localStorage` para o Firestore.
-- `firestore.rules`: regras que limitam o banco a um único Gmail autorizado.
+IMPORTANTE: esta atualização não executa importação, não limpa a coleção caixas e não substitui os documentos já existentes. Não execute importar-inventario.html novamente a menos que tenha um motivo específico e um backup confirmado.
 
-O inventário completo deixa de ficar embutido no `index.html` final. A coleção `caixas` passa a guardar os dados de cada caixa e o status de conferência. Isso é importante porque um login visual sozinho não protege dados que continuem publicados no código HTML.
+CONFIGURAÇÃO NECESSÁRIA NO FIREBASE CONSOLE
 
-## Antes de publicar: configure seu Gmail
+1. Abra o projeto inventarioconsolidadosetarq.
+2. Em Authentication > Sign-in method, habilite E-mail/senha.
+3. Em Authentication > Users, crie a conta para rafanvieira86@gmail.com com uma senha forte. Não coloque essa senha no HTML nem no GitHub.
+4. Envie a verificação de e-mail e confirme o endereço antes de usar o sistema. O acesso e as regras exigem e-mail verificado.
+5. Em Firestore Database > Rules, publique o conteúdo deste repositório em firestore.rules. As regras permitem acesso somente à conta autorizada autenticada por senha e impedem exclusão de documentos.
+6. Em Authentication > Settings > Authorized domains, confirme que o domínio do site publicado está autorizado.
 
-Você disse que somente sua conta Google deve acessar. Para evitar liberar o banco para qualquer conta, os arquivos vêm com um marcador seguro de configuração.
+USO
 
-1. Abra `index.html` em um editor de texto e procure `SEU_GMAIL_AQUI`.
-2. Substitua o marcador pelo seu endereço Gmail completo, entre aspas simples.
-3. Faça a mesma substituição em `importar-inventario.html`.
-4. Abra `firestore.rules`, substitua o marcador pelo mesmo endereço Gmail e publique as regras no Firebase Console > Firestore Database > Regras.
-5. No Firebase Console > Authentication > Método de login, habilite o provedor **Google**.
-6. Em Authentication > Configurações > Domínios autorizados, confirme que o domínio do GitHub Pages do repositório está autorizado (por exemplo, `rafanvieira86.github.io`).
+- Abra o site publicado e entre com o e-mail autorizado e a senha cadastrada.
+- O botão “Esqueci minha senha” solicita ao Firebase um e-mail de redefinição.
+- Os registros de conferência são sincronizados com a coleção caixas no Firestore; o aplicativo não exige que o usuário importe novamente o inventário.
+- Teste uma caixa existente, salve uma observação e confira em outro navegador que a alteração foi sincronizada.
+- Não remova documentos da coleção caixas para “reiniciar” o sistema.
 
-Não use regras abertas como `allow read, write: if true`.
+SEGURANÇA E PRESERVAÇÃO
 
-## Ordem de implantação
-
-### 1. Faça backup
-Guarde uma cópia do `index.html` atual e não apague o repositório original. O status local usa a chave `conferencia_caixas_status_v1`.
-
-### 2. Publique temporariamente a ferramenta de importação
-Envie `importar-inventario.html` para a raiz do mesmo repositório GitHub Pages, sem substituir o `index.html` atual. Abra a URL do arquivo no mesmo domínio, por exemplo:
-`https://rafanvieira86.github.io/inventarioconsolidadosetarq/importar-inventario.html`
-
-A ferramenta usa o mesmo `localStorage` do domínio e tenta preservar os status locais. Entre com o Gmail autorizado e clique para importar. Ela envia lotes de até 400 documentos e mantém status já existentes no Firestore se a importação for repetida.
-
-### 3. Confirme a importação
-Aguarde a mensagem de conclusão e confira no Firebase Console > Firestore Database se a coleção `caixas` contém os documentos. O inventário tem 615 caixas/grupos; o ID do documento é codificado para aceitar endereços que contêm `/`.
-
-### 4. Publique a versão conectada
-Substitua o `index.html` antigo pelo novo `index.html` fornecido. Teste:
-- entrar com o Gmail autorizado;
-- localizar caixas;
-- registrar conferência;
-- registrar divergência;
-- voltar uma caixa para pendente;
-- abrir o site em outro navegador e confirmar que os status sincronizam.
-
-### 5. Remova a ferramenta temporária
-Depois de confirmar que o novo site funciona, exclua `importar-inventario.html` do repositório. Ela contém uma cópia dos dados de inventário e só deve permanecer publicada pelo tempo necessário à importação.
-
-## Observações importantes
-
-- O SDK do Firebase usa a configuração pública do aplicativo Web; a proteção real está na autenticação e nas regras do Firestore.
-- O novo `index.html` não contém a lista completa de caixas. Ele depende da coleção `caixas` no Firestore.
-- Não publique o novo `index.html` antes de concluir a importação; sem os documentos no banco, ele não exibirá o inventário.
-- A ferramenta de importação deve ser aberta no mesmo domínio do site para ler o `localStorage` já existente. Se os status antigos estiverem em outro navegador/dispositivo, eles não serão acessíveis por esta ferramenta.
+- A configuração Firebase Web no HTML identifica o aplicativo; ela não substitui as regras de segurança.
+- As regras exigem sessão autenticada, provedor password, e-mail verificado e o endereço autorizado.
+- A exclusão de documentos da coleção caixas é bloqueada pelas regras.
+- Guarde uma cópia dos arquivos e não publique senhas, chaves privadas ou credenciais de serviço.
+- A ferramenta importar-inventario.html é uma ferramenta de migração separada e não é necessária para o uso diário depois que os dados já estiverem no Firestore.
