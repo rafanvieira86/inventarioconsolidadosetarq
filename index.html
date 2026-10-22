@@ -29,6 +29,7 @@
 body.auth-locked .sidebar,body.auth-locked .main,body.auth-locked #toast{display:none!important}
 @media(max-width:720px){.auth-card{padding:26px 20px}.auth-card h1{font-size:21px}.user-controls{justify-content:flex-start}.user-email{max-width:155px}}
 
+  .auth-input{display:block;width:100%;margin:7px 0 15px;padding:12px 13px;border:1px solid #d8e4dc;border-radius:9px;background:#fff;color:var(--ink);outline-color:var(--green);font:14px 'DM Sans',sans-serif}.email-login-form{text-align:left;margin-top:20px}.email-login-form label{display:block;font-size:12px;font-weight:700;color:#405b4b}.email-login-form .google-btn{width:100%;justify-content:center;margin-top:2px}.auth-reset{display:block;width:100%;margin-top:12px;border:0;background:transparent;color:var(--green);font:700 12px 'DM Sans',sans-serif;padding:8px}.auth-reset:hover{text-decoration:underline}.email-login-form button:disabled{opacity:.65;cursor:wait}
   </style>
 </head>
 <body class="auth-locked">
@@ -37,10 +38,17 @@ body.auth-locked .sidebar,body.auth-locked .main,body.auth-locked #toast{display
     <div class="auth-card">
       <div class="auth-logo">AR</div>
       <h1 id="authTitle">Conferência de Caixas</h1>
-      <p>Acesse com sua conta Google autorizada para consultar o inventário e sincronizar as conferências no banco de dados.</p>
-      <button id="googleLoginBtn" class="google-btn" type="button"><span class="google-mark">G</span> Entrar com Google</button>
+      <p>Entre com o e-mail autorizado e a senha cadastrada no Firebase para consultar e sincronizar as conferências.</p>
+      <form id="emailLoginForm" class="email-login-form">
+        <label for="loginEmail">E-mail</label>
+        <input id="loginEmail" class="auth-input" type="email" autocomplete="username" required placeholder="seu e-mail autorizado">
+        <label for="loginPassword">Senha</label>
+        <input id="loginPassword" class="auth-input" type="password" autocomplete="current-password" required placeholder="Sua senha">
+        <button id="emailLoginBtn" class="google-btn" type="submit">Entrar com e-mail e senha</button>
+      </form>
+      <button id="resetPasswordBtn" class="auth-reset" type="button">Esqueci minha senha</button>
       <div id="authMessage" class="auth-message" role="status" aria-live="polite"></div>
-      <p class="auth-foot">Acesso restrito · Autenticação e dados protegidos pelo Firebase</p>
+      <p class="auth-foot">Acesso individual restrito · Protegido pelo Firebase Authentication e pelas regras do Firestore</p>
     </div>
   </section>
 
@@ -84,7 +92,7 @@ body.auth-locked .sidebar,body.auth-locked .main,body.auth-locked #toast{display
         <select id="sortFilter" aria-label="Ordenar caixas"><option value="endereco">Ordenar por endereço</option><option value="recentes">Conferidas recentemente</option><option value="documentos">Mais documentos</option></select>
       </div>
       <div class="table-wrap"><table><thead><tr><th>CAIXA / LOCALIZAÇÃO</th><th>DOCUMENTOS NO INVENTÁRIO</th><th>ORIGEM</th><th>STATUS</th><th>ÚLTIMA AÇÃO</th><th></th></tr></thead><tbody id="statusRows"></tbody></table><div id="statusEmpty" class="empty-state hidden"><h3>Nenhuma caixa encontrada</h3><p>Tente alterar os filtros.</p></div></div>
-      <div class="table-footer"><span id="statusCount">0 caixas</span><span>O status fica salvo neste navegador.</span></div>
+      <div class="table-footer"><span id="statusCount">0 caixas</span><span>As conferências são sincronizadas com o Cloud Firestore.</span></div>
     </section>
     <footer>Conferência de caixas · Inventário importado do CSV de permanentes <span id="footerCount"></span></footer>
   </main>
@@ -112,7 +120,11 @@ body.auth-locked .sidebar,body.auth-locked .main,body.auth-locked #toast{display
     window.firebaseDb = db;
     const authScreen = document.getElementById('authScreen');
     const authMessage = document.getElementById('authMessage');
-    const loginButton = document.getElementById('googleLoginBtn');
+    const loginForm = document.getElementById('emailLoginForm');
+    const loginEmail = document.getElementById('loginEmail');
+    const loginPassword = document.getElementById('loginPassword');
+    const loginButton = document.getElementById('emailLoginBtn');
+    const resetPasswordButton = document.getElementById('resetPasswordBtn');
     const userControls = document.getElementById('userControls');
     const userEmail = document.getElementById('userEmail');
     const logoutButton = document.getElementById('logoutBtn');
@@ -120,16 +132,48 @@ body.auth-locked .sidebar,body.auth-locked .main,body.auth-locked #toast{display
     const showError = (message) => { authMessage.textContent = message; };
     document.body.classList.add('auth-locked');
 
-    loginButton.addEventListener('click', async () => {
+    loginForm.addEventListener('submit', async (event) => {
+      event.preventDefault();
       showError('');
+      loginButton.disabled = true;
+      loginButton.textContent = 'Entrando…';
       try {
-        const provider = new firebase.auth.GoogleAuthProvider();
-        provider.setCustomParameters({ prompt: 'select_account' });
-        await auth.signInWithRedirect(provider);
+        await auth.signInWithEmailAndPassword(loginEmail.value.trim(), loginPassword.value);
       } catch (error) {
-        showError(error.code === 'auth/popup-blocked'
-          ? 'O navegador bloqueou a janela de login. Permita pop-ups para este site e tente novamente.'
-          : 'Não foi possível entrar com Google: ' + (error.message || error.code));
+        const messages = {
+          'auth/invalid-credential': 'E-mail ou senha incorretos.',
+          'auth/invalid-login-credentials': 'E-mail ou senha incorretos.',
+          'auth/user-not-found': 'E-mail ou senha incorretos.',
+          'auth/wrong-password': 'E-mail ou senha incorretos.',
+          'auth/too-many-requests': 'Muitas tentativas. Aguarde um pouco e tente novamente.',
+          'auth/user-disabled': 'Esta conta foi desativada.',
+          'auth/operation-not-allowed': 'O acesso por e-mail e senha ainda não foi habilitado no Firebase Authentication.'
+        };
+        showError(messages[error.code] || 'Não foi possível entrar. Confira os dados e tente novamente.');
+      } finally {
+        loginButton.disabled = false;
+        loginButton.textContent = 'Entrar com e-mail e senha';
+      }
+    });
+
+    resetPasswordButton.addEventListener('click', async () => {
+      const email = loginEmail.value.trim();
+      if (!email) {
+        showError('Digite seu e-mail no campo acima para receber o link de redefinição.');
+        loginEmail.focus();
+        return;
+      }
+      if (email.toLowerCase() !== AUTHORIZED_EMAIL.toLowerCase()) {
+        showError('Este e-mail não está autorizado para acessar o inventário.');
+        return;
+      }
+      try {
+        await auth.sendPasswordResetEmail(email);
+        showError('Se a conta estiver cadastrada, o Firebase enviará um e-mail para redefinir a senha.');
+      } catch (error) {
+        showError(error.code === 'auth/too-many-requests'
+          ? 'Muitas tentativas. Aguarde antes de solicitar outro link.'
+          : 'Não foi possível enviar o link. Confira se a conta foi criada no Firebase Authentication.');
       }
     });
 
@@ -148,8 +192,8 @@ body.auth-locked .sidebar,body.auth-locked .main,body.auth-locked #toast{display
         showError('O login foi reconhecido, mas falta configurar o Gmail autorizado. No arquivo index.html, substitua SEU_GMAIL_AQUI pelo seu endereço Gmail e publique as regras fornecidas em firestore.rules.');
         return;
       }
-      if (!user.email || user.email.toLowerCase() !== AUTHORIZED_EMAIL.toLowerCase() || !user.emailVerified) {
-        showError('Esta conta Google não está autorizada para acessar o inventário. Entre com o Gmail definido pelo administrador.');
+      if (!user.email || user.email.toLowerCase() !== AUTHORIZED_EMAIL.toLowerCase() || !user.emailVerified || !user.providerData.some(provider => provider.providerId === 'password')) {
+        showError('Esta conta não está autorizada. Use o e-mail individual cadastrado no Firebase, confirme o endereço e entre com senha.');
         await auth.signOut();
         return;
       }
