@@ -37,6 +37,8 @@ html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#f5f8f6;fon
   let frameStorageSetItem = null;
   let applyingRemote = false;
   let lastKnownMap = {};
+  let returnToStatusAfterSave = false;
+  let savedStatusView = null;
   const pendingWrites = new Set();
   const cloudDocId = id => encodeURIComponent(String(id));
   const readMap = () => {
@@ -115,9 +117,53 @@ html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#f5f8f6;fon
       const w = frame.contentWindow;
       if (!w || w.location.origin !== location.origin) return;
       frameStorageSetItem = w.Storage.prototype.setItem;
+      // If a box was opened from the Status tab, return to that same filtered
+      // table after saving its conference status instead of leaving the user
+      // in "Localizar e conferir".
+      w.document.addEventListener('click', event => {
+        const rowButton = event.target && event.target.closest
+          ? event.target.closest('[data-status-open]') : null;
+        if (!rowButton) return;
+        returnToStatusAfterSave = true;
+        savedStatusView = {
+          search: w.document.getElementById('statusSearch')?.value || '',
+          filter: w.document.getElementById('statusFilter')?.value || 'todos',
+          sort: w.document.getElementById('sortFilter')?.value || 'endereco'
+        };
+      }, true);
       w.Storage.prototype.setItem = function(key, value) {
+        let before = null;
+        if (key === KEY && !applyingRemote) {
+          try { before = JSON.parse(frameStorageSetItem.call(this, key) || '{}') || {}; } catch (_) {}
+        }
         frameStorageSetItem.call(this, key, value);
-        if (key === KEY && !applyingRemote) handleLocalChange(String(value));
+        if (key === KEY && !applyingRemote) {
+          handleLocalChange(String(value));
+          if (returnToStatusAfterSave) {
+            let next = {};
+            try { next = JSON.parse(String(value) || '{}') || {}; } catch (_) {}
+            const changed = Object.keys(next).some(id =>
+              JSON.stringify(next[id] || {}) !== JSON.stringify((before || {})[id] || {})
+            );
+            if (changed) {
+              returnToStatusAfterSave = false;
+              const view = savedStatusView;
+              w.setTimeout(() => {
+                const search = w.document.getElementById('statusSearch');
+                const filter = w.document.getElementById('statusFilter');
+                const sort = w.document.getElementById('sortFilter');
+                if (search && view) search.value = view.search;
+                if (filter && view) filter.value = view.filter;
+                if (sort && view) sort.value = view.sort;
+                const statusNav = w.document.querySelector('.nav-link[data-page="status"]');
+                if (statusNav) statusNav.click();
+                if (search) search.dispatchEvent(new w.Event('input', {bubbles:true}));
+                if (filter) filter.dispatchEvent(new w.Event('change', {bubbles:true}));
+                if (sort) sort.dispatchEvent(new w.Event('change', {bubbles:true}));
+              }, 0);
+            }
+          }
+        }
       };
       frameLoaded = true;
       // Keep the existing interface and change only its explanatory text.
