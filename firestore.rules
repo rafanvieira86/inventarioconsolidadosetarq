@@ -1,0 +1,16 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Acesso sem tela de login: visitantes anônimos podem compartilhar status de conferência.
+    // Qualquer pessoa com acesso público ao aplicativo poderá alterar esses status.
+    match /conferencia_status/{statusId} {
+      allow read, create, update: if request.auth != null
+        && request.auth.token.firebase.sign_in_provider == 'anonymous';
+      allow delete: if false;
+    }
+    // Não abre nem altera outras coleções existentes, inclusive inventário.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
