@@ -134,7 +134,7 @@ html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#f5f8f6;fon
       w.Storage.prototype.setItem = function(key, value) {
         let before = null;
         if (key === KEY && !applyingRemote) {
-          try { before = JSON.parse(frameStorageSetItem.call(this, key) || '{}') || {}; } catch (_) {}
+          try { before = JSON.parse(this.getItem(key) || '{}') || {}; } catch (_) {}
         }
         frameStorageSetItem.call(this, key, value);
         if (key === KEY && !applyingRemote) {
