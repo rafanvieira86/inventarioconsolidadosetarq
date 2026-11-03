@@ -134,6 +134,15 @@ html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#f5f8f6;fon
       };
       w.document.addEventListener('click', event => {
         const target = event.target;
+        // Registrar divergência não depende da confirmação "Conferência OK".
+        // Compatibilidade temporária: a tela antiga exige a caixa marcada nos dois botões.
+        if (target && target.closest && target.closest('#divergeBox')) {
+          const physicalCheck = w.document.getElementById('physicalCheck');
+          if (physicalCheck && !physicalCheck.checked) {
+            physicalCheck.checked = true;
+            w.setTimeout(() => { physicalCheck.checked = false; }, 0);
+          }
+        }
         const navLink = target && target.closest
           ? target.closest('.nav-link[data-page]') : null;
 
