@@ -4,12 +4,24 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="theme-color" content="#176b4d">
-<title>Conferência de Caixas</title>
+<meta name="description" content="Inventário Consolidado Setarq — conferência e consulta de caixas.">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="192x192" href="./icons/app-icon-192.png">
+<link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Inventário Setarq">
+<meta name="mobile-web-app-capable" content="yes">
+<title>Inventário Consolidado Setarq</title>
 <style>
 html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#f5f8f6;font-family:Arial,sans-serif}
 #appFrame{display:block;width:100%;height:100%;border:0}
 #syncNotice{position:fixed;z-index:10;right:12px;bottom:12px;padding:8px 12px;border-radius:8px;background:#123f30;color:#fff;font-size:12px;box-shadow:0 4px 18px #0002;opacity:0;transition:opacity .2s;pointer-events:none}
 #syncNotice.show{opacity:1}
+#installApp{position:fixed;z-index:11;left:calc(12px + env(safe-area-inset-left));bottom:calc(12px + env(safe-area-inset-bottom));border:0;border-radius:999px;padding:10px 15px;background:#176b4d;color:#fff;font:700 12px Arial,sans-serif;box-shadow:0 4px 18px #0003;cursor:pointer}
+#installApp:active{transform:translateY(1px)}
+#installApp[hidden]{display:none}
 </style>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
@@ -18,6 +30,7 @@ html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#f5f8f6;fon
 <body>
 <iframe id="appFrame" src="app-original.html" title="Conferência de Caixas"></iframe>
 <div id="syncNotice" role="status" aria-live="polite"></div>
+<button id="installApp" type="button" hidden>Instalar app</button>
 <script>
 (() => {
   const CONFIG = {
@@ -280,6 +293,52 @@ html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#f5f8f6;fon
       console.error('Falha ao iniciar Firebase:', error);
       show('Ative a autenticação anônima no Firebase e publique as regras do Firestore.', true);
     }
+  }
+
+  // Instalação PWA: Android/Chromium usa o prompt nativo; no iPhone/iPad
+  // mostramos o caminho de instalação pela opção Compartilhar do navegador.
+  const installButton = document.getElementById('installApp');
+  let deferredInstallPrompt = null;
+  const isAppleMobile = /iphone|ipad|ipod/i.test(navigator.userAgent)
+    || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  const isInstalled = window.matchMedia('(display-mode: standalone)').matches
+    || navigator.standalone === true;
+
+  if (installButton && !isInstalled) installButton.hidden = false;
+  window.addEventListener('beforeinstallprompt', event => {
+    event.preventDefault();
+    deferredInstallPrompt = event;
+    if (installButton) installButton.hidden = false;
+  });
+  if (installButton) {
+    installButton.addEventListener('click', async () => {
+      if (deferredInstallPrompt) {
+        deferredInstallPrompt.prompt();
+        const choice = await deferredInstallPrompt.userChoice;
+        if (choice && choice.outcome === 'accepted') {
+          installButton.hidden = true;
+          show('Aplicativo instalado.');
+        }
+        deferredInstallPrompt = null;
+      } else if (isAppleMobile) {
+        show('No iPhone/iPad: toque em Compartilhar e escolha “Adicionar à Tela de Início”.');
+      } else {
+        show('Abra o menu do navegador (⋮) e escolha “Instalar aplicativo” ou “Adicionar à tela inicial”.');
+      }
+    });
+  }
+  window.addEventListener('appinstalled', () => {
+    if (installButton) installButton.hidden = true;
+    show('Aplicativo instalado com sucesso.');
+  });
+
+  // O service worker mantém a interface disponível em cache após a primeira visita.
+  // Firebase/Firestore continuam exigindo conexão para sincronizar os dados.
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('./sw.js')
+        .catch(error => console.warn('Não foi possível registrar o app instalável:', error));
+    });
   }
   start();
 })();
